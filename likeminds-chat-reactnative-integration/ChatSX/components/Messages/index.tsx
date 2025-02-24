@@ -1,5 +1,5 @@
-import { Image, TouchableOpacity, View } from "react-native";
-import React, { ReactNode, useMemo } from "react";
+import { Image, TouchableOpacity, View, Text } from "react-native";
+import React, { ReactNode, useMemo, useState, useLayoutEffect } from "react";
 import { styles } from "./styles";
 import STYLES from "../../constants/Styles";
 import ReplyConversations from "../ReplyConversations";
@@ -18,6 +18,9 @@ import { NavigateToProfileParams } from "../../callBacks/type";
 import { CallBack } from "../../callBacks/callBackClass";
 import { useCustomComponentsContext } from "../../context/CustomComponentContextProvider";
 import { Conversation } from "@likeminds.community/chat-rn/dist/shared/responseModels/Conversation";
+import { onConversationsCreate } from "../../store/actions/chatroom";
+import { useAppDispatch } from "../../store";
+import { Client } from "../../client";
 
 interface Messages {
   item: any;
@@ -73,10 +76,44 @@ const MessagesComponent = ({
     isItemIncludedInStateArr,
     handleLongPress,
   } = useMessageContext();
+  const [showRetry, setShowRetry] = useState(false);
+
+  useLayoutEffect(() => {
+    let interval;
+
+    const checkMessageStatus = () => {
+      if (item?.id?.includes && item?.id?.includes("-")) {
+        const currentTimeStampEpoch = Math.floor(Date.now() / 1000);
+        const localTimestamp = Math.floor(Math.abs(parseInt(item?.id)) / 1000);
+
+        if (currentTimeStampEpoch - localTimestamp > 30) {
+          setShowRetry(true);
+
+          // Stop checking once the condition is met
+          if (interval) {
+            console.log("HOGYE 30Seconds")
+            clearInterval(interval);
+          }
+        }
+      }
+    };
+    
+    // Initial check
+    checkMessageStatus();
+    if (item?.id?.includes && item?.id?.includes("-")) {
+      // Start periodic checking
+      interval = setInterval(checkMessageStatus, 5000);
+    }
+
+    // Cleanup interval when component unmounts
+    return () => clearInterval(interval);
+  }, [item])
+
+
   const { customReactionList }: CustomReactionList =
     useCustomComponentsContext();
 
-  const { removeReaction, chatroomID } = useChatroomContext();
+  const { removeReaction, chatroomID, uploadResourceRetry } = useChatroomContext();
 
   const {
     customDeletedMessage,
@@ -114,6 +151,50 @@ const MessagesComponent = ({
   }, [item]);
   if (showCustomMessageViewWidget) {
     return customWidgetMessageView ? customWidgetMessageView(item) : null;
+  }
+
+  const dispatch = useAppDispatch();
+
+  async function retry() {
+    const failedUploads = item?.attachments?.map(attachmentObject => {
+      if (attachmentObject?.isUploaded == false) {
+        return attachmentObject
+      }
+    });
+
+    const res = await uploadResourceRetry(
+      {
+        selectedImages: failedUploads,
+        conversationID: item?.id,
+        chatroomID: item?.chatroomId,
+        conversation: item,
+        isRetry: false,
+      }
+    )
+
+    let payload: any = {
+      chatroomId: chatroomID,
+      hasFiles: item?.attachments?.length > 0 ? true : false,
+      text: item?.answer?.trim(),
+      temporaryId: item?.temporaryId?.toString(),
+      attachmentCount: item?.attachments?.length,
+      repliedConversationId: item?.replyConversationId?.id,
+      attachments: res,
+      triggerBot: false,
+    };
+
+    item.localCreatedEpoch = Date.now();
+
+    try {
+      await Client?.myClient?.updateConversationData(item)
+    } catch (e) {
+      console.log(e);
+    } finally {
+      const response: any = await dispatch(
+        onConversationsCreate(payload) as any
+      );
+      setShowRetry(false);
+    }
   }
 
   return (
@@ -164,6 +245,11 @@ const MessagesComponent = ({
             removeReaction={removeReaction}
           />
         )}
+        {showRetry ?
+          <TouchableOpacity onPress={retry} style={{ flex: 1, flexDirection: 'row', justifyContent: 'flex-end' }}>
+            <Text style={{ color: '#F04438', fontSize: 8, right: 10, bottom: 5 }}>Failed. Tap to retry</Text>
+          </TouchableOpacity>
+          : null}
       </View>
     </View>
   );

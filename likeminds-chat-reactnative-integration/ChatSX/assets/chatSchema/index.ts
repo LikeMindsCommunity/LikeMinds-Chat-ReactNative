@@ -13,7 +13,7 @@ export const chatSchema: any = {
     createdEpoch: 1678790461662,
     date: "14 Mar 2023",
     hasFiles: false,
-    id: "2228595",
+    id: `-${Date.now().toString()}`,
     isEdited: false,
     member: {
       id: "119638",
@@ -59,7 +59,7 @@ export const chatSchema: any = {
     createdEpoch: 1678961924282,
     date: "16 Mar 2023",
     hasFiles: false,
-    id: "2239337",
+    id: `-${Date.now().toString()}`,
     isEdited: false,
     lastSeen: true,
     member: {

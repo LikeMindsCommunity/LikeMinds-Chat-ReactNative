@@ -91,6 +91,7 @@ import {
   CANCEL_BUTTON,
   CONFIRM_BUTTON,
   FAILED,
+  GIF_TEXT,
   IMAGE_TEXT,
   JOIN_CHATROOM,
   JOIN_CHATROOM_MESSAGE,
@@ -103,7 +104,7 @@ import {
   VOICE_NOTE_TEXT,
 } from "../constants/Strings";
 import { getChatroom } from "../store/actions/chatroom";
-import { fetchResourceFromURI, formatTime } from "../commonFuctions";
+import { fetchResourceFromURI, formatTime, generateGifName } from "../commonFuctions";
 import { Image as CompressedImage } from "react-native-compressor";
 import { Client } from "../client";
 import AudioPlayer from "../optionalDependecies/AudioPlayer";
@@ -233,6 +234,7 @@ export interface ChatroomContextValues {
   setShimmerVisibleForChatbot: Dispatch<SetStateAction<boolean>>;
   setMessageSentByUserId: Dispatch<SetStateAction<string>>;
   backAction: any;
+  uploadResourceRetry: any
 }
 
 const ChatroomContext = createContext<ChatroomContextValues | undefined>(
@@ -1953,6 +1955,7 @@ export const ChatroomContextProvider = ({ children }: ChatroomContextProps) => {
             fileUrl: awsResponse,
             createdAt: conversationID,
             updatedAt: conversationID,
+            isUploaded: true
           };
 
           attachments.push(payload);
@@ -2067,6 +2070,187 @@ export const ChatroomContextProvider = ({ children }: ChatroomContextProps) => {
       return res;
     }
   };
+
+
+  const uploadResourceRetry = async ({
+    selectedImages,
+    conversationID,
+    chatroomID,
+    conversation,
+    isRetry,
+  }: UploadResource) => {
+    LogBox.ignoreLogs(["new NativeEventEmitter"]);
+    let attachments: Attachment[] = [];
+    for (let i = 0; i < selectedImages?.length; i++) {
+      const item = selectedImages[i];
+      if (item == null || item == undefined) continue
+      const attachmentType = isRetry ? item?.type : item?.type?.split("/")[0];
+      const gifAttachmentType = item?.data?.type;
+      const docAttachmentType = isRetry
+        ? item?.type
+        : item?.type?.split("/")[1];
+      const thumbnailURL = item?.thumbnailUrl;
+      const gifHeight = item?.data?.images?.fixed_width?.height;
+      const gifWidth = item?.data?.images?.fixed_width?.width;
+      const name =
+        attachmentType === IMAGE_TEXT
+          ? item.name
+          : attachmentType === VIDEO_TEXT
+          ? item.name
+          : gifAttachmentType === GIF_TEXT
+          ? generateGifName()
+          : docAttachmentType === PDF_TEXT
+          ? item.name
+          : null;
+    
+
+      const path = `files/collabcard/${chatroomID}/conversation/${conversationID}/${name}`;
+      const thumbnailUrlPath = `files/collabcard/${chatroomID}/conversation/${conversationID}/${thumbnailURL}`;
+      let uriFinal: any;
+
+      if (attachmentType === IMAGE_TEXT) {
+        const compressedImgURI = await CompressedImage.compress(item.url, {
+          compressionMethod: "auto",
+        });
+        const compressedImg = await fetchResourceFromURI(compressedImgURI);
+        uriFinal = compressedImg;
+      } else {
+        const img = await fetchResourceFromURI(item?.url);
+        uriFinal = img;
+      }
+
+      //for video thumbnail
+      let thumbnailUrlImg: any;
+      if (
+        thumbnailURL &&
+        (attachmentType === VIDEO_TEXT || gifAttachmentType === GIF_TEXT)
+      ) {
+        thumbnailUrlImg = await fetchResourceFromURI(thumbnailURL);
+      }
+
+      const params = {
+        Bucket: BUCKET,
+        Key: path,
+        Body: uriFinal,
+        ACL: "public-read-write",
+        ContentType: item?.type, // Replace with the appropriate content type for your file
+      };
+
+      //for video thumbnail
+      const thumnnailUrlParams: any = {
+        Bucket: BUCKET,
+        Key: thumbnailUrlPath,
+        Body: thumbnailUrlImg,
+        ACL: "public-read-write",
+        ContentType: "image/jpeg", // Replace with the appropriate content type for your file
+      };
+
+      try {
+        let getVideoThumbnailData: any = null;
+        if (
+          thumbnailURL &&
+          (attachmentType === VIDEO_TEXT || gifAttachmentType === GIF_TEXT)
+        ) {
+          getVideoThumbnailData = await s3.upload(thumnnailUrlParams).promise();
+        }
+
+        const data = await s3.upload(params).promise();
+
+        const awsResponse = data.Location;
+
+        if (awsResponse) {
+          let fileType = "";
+          if (docAttachmentType === PDF_TEXT) {
+            fileType = PDF_TEXT;
+          } else if (attachmentType === AUDIO_TEXT) {
+            fileType = AUDIO_TEXT;
+          } else if (attachmentType === VIDEO_TEXT) {
+            fileType = VIDEO_TEXT;
+          } else if (attachmentType === IMAGE_TEXT) {
+            fileType = IMAGE_TEXT;
+          } else if (gifAttachmentType === GIF_TEXT) {
+            fileType = GIF_TEXT;
+          }
+
+          const payload: Attachment = {
+            // conversationId: conversationID,
+            id: conversationID,
+            // filesCount: selectedImages?.length,
+            index: i,
+            meta:
+              fileType === VIDEO_TEXT
+                ? {
+                    size: item?.metaRO?.size,
+                    duration: item?.metaRO?.duration,
+                  }
+                : {
+                    size: item?.metaRO?.size
+                  },
+            name,
+            type: item?.type,
+            url: awsResponse,
+            thumbnailUrl:
+              fileType === VIDEO_TEXT || fileType === GIF_TEXT
+                ? getVideoThumbnailData?.Location
+                : null,
+            height: gifHeight ? gifHeight : null,
+            width: gifWidth ? gifWidth : null,
+            chatroomId: conversation?.chatroomId,
+            communityId: conversation?.communityId,
+            isUploaded: true
+          };
+
+          await Client?.myClient?.updateAttachment(
+            {
+              id: conversationID
+            },
+            payload
+          )
+
+          attachments.push(payload)
+
+          LMChatAnalytics.track(
+            Events.ATTACHMENT_UPLOADED,
+            new Map<string, string>([
+              [Keys.CHATROOM_ID, chatroomID?.toString()],
+              [Keys.CHATROOM_TYPE, chatroomDBDetails?.type?.toString()],
+              [Keys.MESSAGE_ID, conversationID?.toString()],
+              [Keys.TYPE, attachmentType],
+            ])
+          );
+        }
+      } catch (error) {
+        dispatch({
+          type: SET_FILE_UPLOADING_MESSAGES,
+          body: {
+            message: {
+              ...uploadingFilesMessages[conversationID?.toString()],
+              isInProgress: FAILED,
+            },
+            ID: conversationID,
+          },
+        });
+        const id = conversationID;
+        const message = {
+          ...uploadingFilesMessages[conversationID?.toString()],
+          isInProgress: FAILED,
+        };
+
+        await myClient?.saveAttachmentUploadConversation(
+          id?.toString(),
+          JSON.stringify(message)
+        );
+        return error;
+      }
+      dispatch({
+        type: CLEAR_SELECTED_FILES_TO_UPLOAD,
+      });
+      dispatch({
+        type: CLEAR_SELECTED_FILE_TO_VIEW,
+      });
+    }
+  return attachments;
+  }
 
   // method to be trigerred on initiating of reply privately
   const onReplyPrivatelyClick = async (
@@ -2192,6 +2376,7 @@ export const ChatroomContextProvider = ({ children }: ChatroomContextProps) => {
     refInput,
     shimmerVisibleForChatbot,
     messageSentByUserId,
+    uploadResourceRetry,
 
     setIsEditable,
     setIsReact,
