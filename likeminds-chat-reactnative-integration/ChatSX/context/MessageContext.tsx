@@ -39,10 +39,14 @@ export interface MessageContextValues {
   index: number;
   isStateIncluded: boolean;
   isIncluded: boolean;
-
+  showRetry: boolean;
+  retryUploadInProgress: boolean;
+  
   handleLongPress: (event: GestureResponderEvent) => void;
+  setRetryUploadInProgress: Dispatch<SetStateAction<boolean>>;
   handleOnPress: (event: GestureResponderEvent) => void;
   answerTrimming: (answer: string) => any;
+  setShowRetry: Dispatch<SetStateAction<boolean>>
 }
 
 const MessageContext = createContext<MessageContextValues | undefined>(
@@ -71,6 +75,9 @@ export const MessageContextProvider = ({
   const { stateArr, chatroomDBDetails }: any = useAppSelector(
     (state) => state.chatroom
   );
+
+  const [showRetry, setShowRetry] = useState(false);
+  const [retryUploadInProgress, setRetryUploadInProgress] = useState(false);
 
   const {
     selectedMessages,
@@ -187,10 +194,14 @@ export const MessageContextProvider = ({
     index,
     isStateIncluded,
     isIncluded,
+    showRetry,
+    retryUploadInProgress,
 
+    setShowRetry,
     handleLongPress,
     handleOnPress,
     answerTrimming,
+    setRetryUploadInProgress
   };
 
   return (

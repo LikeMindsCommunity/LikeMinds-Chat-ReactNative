@@ -44,32 +44,6 @@ export const LMChatBotProvider = ({
     }
   }, []);
 
-  useEffect(() => {
-    const func = async () => {
-      const res: any = await myClient?.getAllAttachmentUploadConversations();
-      if (res) {
-        const len = res.length;
-        if (len > 0) {
-          for (let i = 0; i < len; i++) {
-            const data = res[i];
-            const uploadingFilesMessagesSavedObject = JSON.parse(data?.value);
-            dispatch({
-              type: UPDATE_FILE_UPLOADING_OBJECT,
-              body: {
-                message: {
-                  ...uploadingFilesMessagesSavedObject,
-                  isInProgress: FAILED,
-                },
-                ID: data?.key,
-              },
-            });
-          }
-        }
-      }
-    };
-
-    func();
-  }, []);
 
   useEffect(() => {
     //setting client in Client class
@@ -114,32 +88,7 @@ export const LMChatProvider = ({
     }
   }, []);
 
-  useEffect(() => {
-    const func = async () => {
-      const res: any = await myClient?.getAllAttachmentUploadConversations();
-      if (res) {
-        const len = res.length;
-        if (len > 0) {
-          for (let i = 0; i < len; i++) {
-            const data = res[i];
-            const uploadingFilesMessagesSavedObject = JSON.parse(data?.value);
-            dispatch({
-              type: UPDATE_FILE_UPLOADING_OBJECT,
-              body: {
-                message: {
-                  ...uploadingFilesMessagesSavedObject,
-                  isInProgress: FAILED,
-                },
-                ID: data?.key,
-              },
-            });
-          }
-        }
-      }
-    };
 
-    func();
-  }, []);
 
   // to get dispatch
   const dispatch = useAppDispatch();
