@@ -120,7 +120,8 @@ function convertToAttachmentsArray(attachments: Attachment[], time: number) {
       updatedAt: time,
       fileUrl: attachment?.url,
       type: attachment?.type,
-      index: attachment?.index
+      index: attachment?.index,
+      isUploaded: attachment?.isUploaded ?? false
     }))
   }
   return []

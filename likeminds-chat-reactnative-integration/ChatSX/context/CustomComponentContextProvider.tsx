@@ -16,6 +16,7 @@ export interface CustomComponentsContextProps {
   customLinkPreview?: ReactNode;
   customStateMessage?: ReactNode;
   customReactionList?: React.ReactNode;
+  customRetryButton?: React.ReactNode;
 }
 
 export interface CustomComponentsContext {
@@ -33,6 +34,7 @@ export interface CustomComponentsContext {
   customLinkPreview?: ReactNode;
   customStateMessage?: ReactNode;
   customReactionList?: ReactNode;
+  customRetryButton?: React.ReactNode;
 }
 
 const CustomComponentsContext = createContext<
@@ -65,6 +67,7 @@ export const CustomComponentContextProvider = ({
   customLinkPreview,
   customStateMessage,
   customReactionList,
+  customRetryButton
 }: CustomComponentsContextProps) => {
   const contextValues: CustomComponentsContext = {
     customReplyBox,
@@ -81,6 +84,7 @@ export const CustomComponentContextProvider = ({
     customLinkPreview,
     customStateMessage,
     customReactionList,
+    customRetryButton
   };
 
   return (

@@ -48,7 +48,7 @@ interface UploadResource {
 }
 
 interface FileUploadContextValues {
-  handleFileUpload: (conversationID: string, isRetry: boolean) => Promise<void>;
+  handleFileUpload: (conversationID: string, isRetry: boolean) => Promise<any> | null;
   selectedFilesToUpload: any[];
   selectedFileToView: any;
   len: any;
@@ -181,55 +181,55 @@ export const FileUploadContextProvider = ({
         attachmentType === IMAGE_TEXT
           ? item.fileName
           : attachmentType === VIDEO_TEXT
-          ? item.fileName
-          : gifAttachmentType === GIF_TEXT
-          ? generateGifName()
-          : docAttachmentType === PDF_TEXT
-          ? item.name
-          : null;
+            ? item.fileName
+            : gifAttachmentType === GIF_TEXT
+              ? generateGifName()
+              : docAttachmentType === PDF_TEXT
+                ? item.name
+                : null;
 
       const path = `files/collabcard/${chatroomID}/conversation/${conversationID}/${name}`;
       const thumbnailUrlPath = `files/collabcard/${chatroomID}/conversation/${conversationID}/${thumbnailURL}`;
       let uriFinal: any;
-
-      if (attachmentType === IMAGE_TEXT) {
-        const compressedImgURI = await CompressedImage.compress(item.uri, {
-          compressionMethod: "auto",
-        });
-        const compressedImg = await fetchResourceFromURI(compressedImgURI);
-        uriFinal = compressedImg;
-      } else {
-        const img = await fetchResourceFromURI(item.uri ? item.uri : item.url);
-        uriFinal = img;
-      }
-
-      //for video thumbnail
-      let thumbnailUrlImg: any;
-      if (
-        thumbnailURL &&
-        (attachmentType === VIDEO_TEXT || gifAttachmentType === GIF_TEXT)
-      ) {
-        thumbnailUrlImg = await fetchResourceFromURI(thumbnailURL);
-      }
-
-      const params = {
-        Bucket: BUCKET,
-        Key: path,
-        Body: uriFinal,
-        ACL: "public-read-write",
-        ContentType: item?.type, // Replace with the appropriate content type for your file
-      };
-
-      //for video thumbnail
-      const thumnnailUrlParams: any = {
-        Bucket: BUCKET,
-        Key: thumbnailUrlPath,
-        Body: thumbnailUrlImg,
-        ACL: "public-read-write",
-        ContentType: "image/jpeg", // Replace with the appropriate content type for your file
-      };
-
       try {
+
+        if (attachmentType === IMAGE_TEXT) {
+          const compressedImgURI = await CompressedImage.compress(item.uri, {
+            compressionMethod: "auto",
+          });
+          const compressedImg = await fetchResourceFromURI(compressedImgURI);
+          uriFinal = compressedImg;
+        } else {
+          const img = await fetchResourceFromURI(item.uri ? item.uri : item.url);
+          uriFinal = img;
+        }
+
+        //for video thumbnail
+        let thumbnailUrlImg: any;
+        if (
+          thumbnailURL &&
+          (attachmentType === VIDEO_TEXT || gifAttachmentType === GIF_TEXT)
+        ) {
+          thumbnailUrlImg = await fetchResourceFromURI(thumbnailURL);
+        }
+
+        const params = {
+          Bucket: BUCKET,
+          Key: path,
+          Body: uriFinal,
+          ACL: "public-read-write",
+          ContentType: item?.type, // Replace with the appropriate content type for your file
+        };
+
+        //for video thumbnail
+        const thumnnailUrlParams: any = {
+          Bucket: BUCKET,
+          Key: thumbnailUrlPath,
+          Body: thumbnailUrlImg,
+          ACL: "public-read-write",
+          ContentType: "image/jpeg", // Replace with the appropriate content type for your file
+        };
+
         let getVideoThumbnailData: any = null;
         if (
           thumbnailURL &&
@@ -263,21 +263,21 @@ export const FileUploadContextProvider = ({
             meta:
               fileType === VIDEO_TEXT
                 ? {
-                    size: selectedFilesToUpload[i]?.fileSize,
-                    duration: selectedFilesToUpload[i]?.duration,
-                  }
+                  size: selectedFilesToUpload[i]?.fileSize,
+                  duration: selectedFilesToUpload[i]?.duration,
+                }
                 : {
-                    size:
-                      docAttachmentType === PDF_TEXT
-                        ? selectedFilesToUpload[i]?.size
-                        : selectedFilesToUpload[i]?.fileSize,
-                  },
+                  size:
+                    docAttachmentType === PDF_TEXT
+                      ? selectedFilesToUpload[i]?.size
+                      : selectedFilesToUpload[i]?.fileSize,
+                },
             name:
               docAttachmentType === PDF_TEXT
                 ? selectedFilesToUpload[i]?.name
                 : gifAttachmentType === GIF_TEXT
-                ? name
-                : selectedFilesToUpload[i]?.fileName,
+                  ? name
+                  : selectedFilesToUpload[i]?.fileName,
             type: fileType,
             url: awsResponse,
             thumbnailUrl:
@@ -343,16 +343,23 @@ export const FileUploadContextProvider = ({
   };
 
   const handleFileUpload = async (conversationID: any, isRetry: any) => {
-    const res = await uploadResource({
-      selectedImages: selectedFilesToUpload,
-      conversationID: conversationID,
-      chatroomID: chatroomID,
-      selectedFilesToUpload,
-      uploadingFilesMessages,
-      isRetry: isRetry,
-    });
-
-    return res;
+    try {
+      const res = await uploadResource({
+        selectedImages: selectedFilesToUpload,
+        conversationID: conversationID,
+        chatroomID: chatroomID,
+        selectedFilesToUpload,
+        uploadingFilesMessages,
+        isRetry: isRetry,
+      });
+      if (Array.isArray(res)) {
+        return res;
+      }
+      return null;
+    } catch (error) {
+      console.log(error)
+      return null
+    }
   };
 
   const contextValues: FileUploadContextValues = {

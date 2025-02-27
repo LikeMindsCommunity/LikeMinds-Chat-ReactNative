@@ -13,12 +13,11 @@ export const chatSchema: any = {
     createdEpoch: 1678790461662,
     date: "14 Mar 2023",
     hasFiles: false,
-    id: "2228595",
+    id: `-${Date.now().toString()}`,
     isEdited: false,
     member: {
       id: "119638",
-      imageUrl:
-        "https://prod-likeminds-media.s3.ap-south-1.amazonaws.com/files/profile/1672311097431",
+      imageUrl: "",
       isGuest: false,
       isOwner: false,
       memberSince: "Member since Dec 29 2022",
@@ -59,7 +58,7 @@ export const chatSchema: any = {
     createdEpoch: 1678961924282,
     date: "16 Mar 2023",
     hasFiles: false,
-    id: "2239337",
+    id: `-${Date.now().toString()}`,
     isEdited: false,
     lastSeen: true,
     member: {
@@ -102,8 +101,7 @@ export const chatSchema: any = {
       isEdited: false,
       member: {
         id: "119638",
-        imageUrl:
-          "https://prod-likeminds-media.s3.ap-south-1.amazonaws.com/files/profile/1672311097431",
+        imageUrl: "",
         isGuest: false,
         isOwner: false,
         memberSince: "Member since Dec 29 2022",

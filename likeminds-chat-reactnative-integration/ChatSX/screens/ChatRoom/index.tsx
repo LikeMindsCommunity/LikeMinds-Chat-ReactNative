@@ -33,6 +33,7 @@ interface ChatRoomProps {
   customLinkPreview?: ReactNode;
   customStateMessage?: ReactNode;
   customReactionList?: React.ReactNode;
+  customRetryButton?: React.ReactNode;
   showViewParticipants?: boolean;
   showShareChatroom?: boolean;
   showMuteNotifications?: boolean;
@@ -79,6 +80,7 @@ const ChatRoom = ({
   customLinkPreview,
   customStateMessage,
   customReactionList,
+  customRetryButton,
   showViewParticipants,
   showShareChatroom,
   showMuteNotifications,
